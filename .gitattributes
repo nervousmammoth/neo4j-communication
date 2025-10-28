@@ -1,0 +1,5 @@
+# Git attributes for Neo4j Communication repository
+
+# Font files - mark as binary to prevent diff/merge attempts
+# Fonts are committed to support air-gapped/on-premises deployments
+frontend/public/fonts/*.woff2 binary

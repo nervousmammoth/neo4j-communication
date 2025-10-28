@@ -1,0 +1,79 @@
+services:
+  # ==============================================================================
+  # Neo4j Database
+  # ==============================================================================
+  neo4j:
+    image: neo4j:5-community
+    container_name: neo4j-communication-db
+    restart: unless-stopped
+    ports:
+      - "7474:7474"  # HTTP
+      - "7687:7687"  # Bolt
+    environment:
+      - NEO4J_AUTH=neo4j/changeme123
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_dbms_memory_pagecache_size=512M
+      - NEO4J_dbms_memory_heap_initial__size=512M
+      - NEO4J_dbms_memory_heap_max__size=1G
+      - NEO4J_dbms_security_auth__max__failed__attempts=0
+      - NEO4J_dbms_security_auth__lock__time=0s
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+      - neo4j_import:/var/lib/neo4j/import
+      - neo4j_plugins:/plugins
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 30s
+    networks:
+      - neo4j-communication-network
+
+  # ==============================================================================
+  # Neo4j Communication Frontend (Next.js)
+  # ==============================================================================
+  neo4j-communication-frontend:
+    # For production: Pull from Docker Hub
+    # Replace 'yourusername' with your Docker Hub username
+    image: ${DOCKER_USERNAME:-yourusername}/neo4j-communication:${IMAGE_TAG:-latest}
+
+    # For local development: Build from source
+    # Uncomment the following lines and comment out 'image' above to build locally
+    # build:
+    #   context: ../frontend
+    #   dockerfile: Dockerfile
+
+    container_name: neo4j-communication-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      # Neo4j connection (using container name as hostname)
+      - NEO4J_01_URI=bolt://neo4j:7687
+      - NEO4J_01_USER=neo4j
+      - NEO4J_01_PASSWORD=changeme123
+      - NEXT_PUBLIC_APP_NAME=neo4j-communication
+      - NODE_ENV=production
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    networks:
+      - neo4j-communication-network
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  neo4j_data:
+  neo4j_logs:
+  neo4j_import:
+  neo4j_plugins:
+
+networks:
+  neo4j-communication-network:
+    driver: bridge

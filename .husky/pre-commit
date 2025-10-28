@@ -1,0 +1,10 @@
+# Run tests with coverage check in frontend directory
+echo "Running tests with coverage check..."
+cd frontend && npm run test:coverage
+
+if [ $? -ne 0 ]; then
+  echo "❌ Tests failed or coverage is below 100%. Please fix before committing."
+  exit 1
+fi
+
+echo "✅ All tests pass with 100% coverage!"

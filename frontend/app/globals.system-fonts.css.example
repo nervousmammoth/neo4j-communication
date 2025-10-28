@@ -1,0 +1,38 @@
+/* Alternative globals.css for SYSTEM FONTS configuration
+ * Use this with layout.system-fonts.tsx.example
+ *
+ * To use:
+ * 1. Backup your current globals.css
+ * 2. Replace lines 9-10 in globals.css with the system font stacks below
+ */
+
+/* Replace these lines in your @theme inline block: */
+/*
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+*/
+
+/* With these system font stacks: */
+/*
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  --font-mono: ui-monospace, "Cascadia Code", "Source Code Pro", Menlo, Consolas, "DejaVu Sans Mono", monospace;
+*/
+
+/* System font stack explanation:
+ *
+ * Sans-serif stack:
+ * - -apple-system: Modern macOS and iOS
+ * - BlinkMacSystemFont: Chromium on macOS
+ * - Segoe UI: Windows
+ * - Roboto: Android
+ * - Ubuntu, Cantarell: Linux
+ * - Helvetica Neue: Fallback for older systems
+ *
+ * Monospace stack:
+ * - ui-monospace: Modern browsers' default monospace
+ * - Cascadia Code: Windows Terminal
+ * - Source Code Pro: Popular code font
+ * - Menlo: macOS default
+ * - Consolas: Windows default
+ * - DejaVu Sans Mono: Linux default
+ */
