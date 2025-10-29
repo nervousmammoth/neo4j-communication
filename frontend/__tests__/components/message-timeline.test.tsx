@@ -6,11 +6,11 @@ import type { TimelineMessage, UserSummary, PaginationInfo } from '@/lib/neo4j'
 
 // Mock react-window
 vi.mock('react-window', () => ({
-  FixedSizeList: vi.fn(({ children, height, itemCount, itemSize, width }) => (
+  FixedSizeList: vi.fn(({ children: RowComponent, height, itemCount, itemSize, width, itemData }) => (
     <div data-testid="virtual-list" style={{ height, width }}>
-      {Array.from({ length: Math.min(itemCount, 5) }, (_, index) =>
-        children({ index, style: { height: itemSize } })
-      )}
+      {Array.from({ length: Math.min(itemCount, 5) }, (_, index) => (
+        <RowComponent key={index} index={index} style={{ height: itemSize }} data={itemData} />
+      ))}
     </div>
   )),
 }))

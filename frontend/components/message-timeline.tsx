@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, memo } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { FixedSizeList as List } from 'react-window'
@@ -106,53 +106,73 @@ interface ViewProps {
   user2: UserSummary
 }
 
-function TimelineView({ messages, user1, user2 }: ViewProps) {
-  // Row renderer for virtual scrolling with chat bubble layout
-  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => {
-    const message = messages[index]
-    const isUser1 = message.senderId === user1.userId
-    const sender = isUser1 ? user1 : user2
+// Row component for virtual scrolling - extracted and memoized for performance
+interface RowProps {
+  index: number
+  style: React.CSSProperties
+  data: {
+    messages: TimelineMessage[]
+    user1: UserSummary
+    user2: UserSummary
+  }
+}
 
-    return (
-      <div style={style} className="px-2">
-        <div className={cn(
-          "flex gap-3 mb-2",
-          isUser1 ? "justify-start" : "justify-end"
-        )}>
-          {/* Avatar on left for received messages (user1) */}
-          {isUser1 && <UserAvatar user={sender} size="sm" />}
+const VirtualizedRow = memo(({ index, style, data }: RowProps) => {
+  const { messages, user1, user2 } = data
+  const message = messages[index]
+  const isUser1 = message.senderId === user1.userId
+  const sender = isUser1 ? user1 : user2
 
-          {/* Chat bubble container */}
-          <div className={cn("max-w-[70%] flex flex-col", isUser1 ? "items-start" : "items-end")}>
-            {/* Bubble */}
-            <div className={cn(
-              "rounded-2xl shadow-sm p-3",
-              isUser1 ? "bg-gray-100 text-gray-900" : "bg-gray-900 text-white"
-            )}>
-              <p className="text-sm break-words">{message.content}</p>
-            </div>
+  return (
+    <div style={style} className="px-2">
+      <div className={cn(
+        "flex gap-3 mb-2",
+        isUser1 ? "justify-start" : "justify-end"
+      )}>
+        {/* Avatar on left for received messages (user1) */}
+        {isUser1 && <UserAvatar user={sender} size="sm" />}
 
-            {/* Timestamp */}
-            <span className="text-xs text-muted-foreground mt-1">
-              {formatChatTimestamp(message.timestamp)}
-            </span>
-
-            {/* Conversation link */}
-            <Link
-              href={`/conversations/${message.conversationId}`}
-              className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1 mt-1"
-            >
-              from: {message.conversationTitle}
-              <ExternalLink className="h-3 w-3" />
-            </Link>
+        {/* Chat bubble container */}
+        <div className={cn("max-w-[70%] flex flex-col", isUser1 ? "items-start" : "items-end")}>
+          {/* Bubble */}
+          <div className={cn(
+            "rounded-2xl shadow-sm p-3",
+            isUser1 ? "bg-gray-100 text-gray-900" : "bg-gray-900 text-white"
+          )}>
+            <p className="text-sm break-words">{message.content}</p>
           </div>
 
-          {/* Avatar on right for sent messages (user2) */}
-          {!isUser1 && <UserAvatar user={sender} size="sm" />}
+          {/* Timestamp */}
+          <span className="text-xs text-muted-foreground mt-1">
+            {formatChatTimestamp(message.timestamp)}
+          </span>
+
+          {/* Conversation link */}
+          <Link
+            href={`/conversations/${message.conversationId}`}
+            className="text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1 mt-1"
+          >
+            from: {message.conversationTitle}
+            <ExternalLink className="h-3 w-3" />
+          </Link>
         </div>
+
+        {/* Avatar on right for sent messages (user2) */}
+        {!isUser1 && <UserAvatar user={sender} size="sm" />}
       </div>
-    )
-  }
+    </div>
+  )
+})
+
+VirtualizedRow.displayName = 'VirtualizedRow'
+
+function TimelineView({ messages, user1, user2 }: ViewProps) {
+  // Memoize item data to prevent unnecessary re-renders
+  const itemData = useMemo(() => ({
+    messages,
+    user1,
+    user2
+  }), [messages, user1, user2])
 
   // Use virtual scrolling for performance
   return (
@@ -160,11 +180,19 @@ function TimelineView({ messages, user1, user2 }: ViewProps) {
       <List
         height={600} // Adjust based on viewport
         itemCount={messages.length}
-        itemSize={160} // Increased height for chat bubble + timestamp + link
+        // itemSize: 160px accommodates chat bubble design with:
+        // - Avatar (32px) + spacing
+        // - Chat bubble content with padding (variable, avg ~60-80px)
+        // - Timestamp line (~20px)
+        // - Conversation link (~20px)
+        // - Bottom margin (8px)
+        // NOTE: Long messages may clip. Consider VariableSizeList if issues occur.
+        itemSize={160}
         width="100%"
         className="scrollbar-thin"
+        itemData={itemData}
       >
-        {Row}
+        {VirtualizedRow}
       </List>
     </div>
   )
