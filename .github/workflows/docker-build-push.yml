@@ -18,8 +18,8 @@ on:
         type: string
 
 env:
-  DOCKER_USERNAME: yourusername
-  IMAGE_NAME: yourusername/neo4j-communication
+  DOCKER_USERNAME: nervousmammoth2
+  IMAGE_NAME: nervousmammoth2/neo4j-communication
 
 jobs:
   build-and-push:
