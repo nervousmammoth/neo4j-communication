@@ -65,7 +65,3 @@ reports/*.tmp
 # Runtime log files (keep development docs tracked)
 logs/*.log
 *.log
-
-# Markdown files - documentation removed from repository
-*.md
-**/*.md
