@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
   formatMessageTime,
   getFullTimestamp,
+  formatChatTimestamp,
   isRecentMessage,
   groupMessagesByDate,
   formatDateSeparator,
@@ -297,5 +298,51 @@ describe('integration tests', () => {
     // Check yesterday's group
     const yesterdayGroup = groups.find(g => g.displayDate === 'Yesterday')
     expect(yesterdayGroup?.messages).toHaveLength(1)
+  })
+})
+
+describe('formatChatTimestamp', () => {
+  it('formats timestamp as "Month DD, YYYY at HH:MM AM/PM"', () => {
+    const timestamp = '2025-10-09T14:30:00Z'
+    const result = formatChatTimestamp(timestamp)
+    // Should match pattern like "October 9, 2025 at 2:30 PM"
+    expect(result).toMatch(/^[A-Z][a-z]+ \d{1,2}, \d{4} at \d{1,2}:\d{2} (AM|PM)$/)
+  })
+
+  it('handles different dates correctly', () => {
+    const timestamp1 = '2025-01-15T12:00:00Z'
+    const timestamp2 = '2025-07-04T12:00:00Z'
+
+    const result1 = formatChatTimestamp(timestamp1)
+    const result2 = formatChatTimestamp(timestamp2)
+
+    expect(result1).toMatch(/January/)
+    expect(result1).toMatch(/2025/)
+    expect(result2).toMatch(/July/)
+    expect(result2).toMatch(/2025/)
+  })
+
+  it('handles AM/PM correctly', () => {
+    const morningTimestamp = '2025-10-09T09:30:00Z'
+    const afternoonTimestamp = '2025-10-09T21:30:00Z'
+
+    const morningResult = formatChatTimestamp(morningTimestamp)
+    const afternoonResult = formatChatTimestamp(afternoonTimestamp)
+
+    expect(morningResult).toContain('AM')
+    expect(afternoonResult).toContain('PM')
+  })
+
+  it('handles invalid dates gracefully', () => {
+    const invalidTimestamp = 'invalid-date-string'
+    const result = formatChatTimestamp(invalidTimestamp)
+    expect(result).toBe('Invalid date')
+  })
+
+  it('pads single-digit minutes with zero', () => {
+    const timestamp = '2025-10-09T14:05:00Z'
+    const result = formatChatTimestamp(timestamp)
+    // Should have :05, not :5
+    expect(result).toMatch(/\d{1,2}:05 (AM|PM)/)
   })
 })

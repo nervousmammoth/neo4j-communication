@@ -6,11 +6,11 @@ import type { TimelineMessage, UserSummary, PaginationInfo } from '@/lib/neo4j'
 
 // Mock react-window
 vi.mock('react-window', () => ({
-  FixedSizeList: vi.fn(({ children, height, itemCount, itemSize, width }) => (
+  FixedSizeList: vi.fn(({ children: RowComponent, height, itemCount, itemSize, width, itemData }) => (
     <div data-testid="virtual-list" style={{ height, width }}>
-      {Array.from({ length: Math.min(itemCount, 5) }, (_, index) =>
-        children({ index, style: { height: itemSize } })
-      )}
+      {Array.from({ length: Math.min(itemCount, 5) }, (_, index) => (
+        <RowComponent key={index} index={index} style={{ height: itemSize }} data={itemData} />
+      ))}
     </div>
   )),
 }))
@@ -205,19 +205,18 @@ describe('MessageTimeline', () => {
     })
   })
 
-  it('should render view toggle', () => {
+  it('should not render view toggle (single view only)', () => {
     render(
       <MessageTimeline
         messages={mockMessages}
         pagination={mockPagination}
         user1={mockUser1}
         user2={mockUser2}
-        viewMode="timeline"
       />
     )
 
-    expect(screen.getByTestId('view-toggle')).toBeInTheDocument()
-    expect(screen.getByText('Current: list')).toBeInTheDocument()
+    // ViewToggle should not exist
+    expect(screen.queryByTestId('view-toggle')).not.toBeInTheDocument()
   })
 
   it('should render pagination', () => {
@@ -247,7 +246,7 @@ describe('MessageTimeline', () => {
     expect(screen.getByText('No messages found between these users')).toBeInTheDocument()
   })
 
-  it('should apply different styles for user1 and user2 messages', () => {
+  it('should apply monochrome styles for user1 and user2 messages', () => {
     const { container } = render(
       <MessageTimeline
         messages={mockMessages}
@@ -257,12 +256,14 @@ describe('MessageTimeline', () => {
       />
     )
 
-    // Check for different border colors
-    const user1Messages = container.querySelectorAll('.border-l-blue-500')
-    const user2Messages = container.querySelectorAll('.border-l-green-500')
-    
-    expect(user1Messages.length).toBeGreaterThan(0)
-    expect(user2Messages.length).toBeGreaterThan(0)
+    // Check for monochrome colors instead of colored borders
+    const html = container.innerHTML
+    expect(html).toContain('bg-gray-100') // user1 messages
+    expect(html).toContain('bg-gray-900') // user2 messages
+
+    // Should NOT have colorful borders
+    expect(html).not.toContain('border-l-blue-500')
+    expect(html).not.toContain('border-l-green-500')
   })
 
   it('should render virtual list for performance', () => {
@@ -317,29 +318,186 @@ describe('MessageTimeline', () => {
     })
   })
 
-  it('should switch between timeline and grouped views', async () => {
-    const user = userEvent.setup()
-    
+})
+
+describe('Chat Bubble Layout (Monochrome Design)', () => {
+  const mockUser1: UserSummary = {
+    userId: 'user1',
+    name: 'Alice',
+    email: 'alice@example.com',
+    avatarUrl: null,
+    status: 'active',
+    lastActive: '2024-01-01T00:00:00Z',
+  }
+
+  const mockUser2: UserSummary = {
+    userId: 'user2',
+    name: 'Bob',
+    email: 'bob@example.com',
+    avatarUrl: null,
+    status: 'active',
+    lastActive: '2024-01-01T00:00:00Z',
+  }
+
+  const mockMessages: TimelineMessage[] = [
+    {
+      messageId: 'msg1',
+      content: 'Message from user1',
+      senderId: 'user1',
+      timestamp: '2024-01-15T10:00:00Z',
+      conversationId: 'conv1',
+      conversationTitle: 'Test Conversation',
+    },
+    {
+      messageId: 'msg2',
+      content: 'Message from user2',
+      senderId: 'user2',
+      timestamp: '2024-01-15T10:05:00Z',
+      conversationId: 'conv1',
+      conversationTitle: 'Test Conversation',
+    },
+  ]
+
+  const mockPagination: PaginationInfo = {
+    page: 1,
+    limit: 20,
+    total: 2,
+    totalPages: 1,
+  }
+
+  it('should not render ViewToggle component', () => {
     render(
       <MessageTimeline
         messages={mockMessages}
         pagination={mockPagination}
         user1={mockUser1}
         user2={mockUser2}
-        viewMode="list"
       />
     )
 
-    // Find the card view toggle button (Grid icon)
-    const cardViewButton = screen.getByLabelText('Card view')
-    await user.click(cardViewButton)
+    // ViewToggle should not be present
+    expect(screen.queryByTestId('view-toggle')).not.toBeInTheDocument()
+  })
 
-    // Should now show grouped view content
-    // Wait for the view to change - grouped view has different structure
+  it('should render only single chat view (no grouped view)', () => {
+    render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    // Should have virtual list (single view)
+    expect(screen.getByTestId('virtual-list')).toBeInTheDocument()
+
+    // Should not have conversation grouping headings
+    expect(screen.queryByText('Test Conversation')).not.toBeInTheDocument()
+  })
+
+  it('should display full timestamp for messages', () => {
+    render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    // Should show full timestamps (not just relative like "5m ago")
+    // Format: "January 15, 2024 at 10:00 AM"
+    const container = screen.getByTestId('virtual-list')
+    expect(container.textContent).toMatch(/January/)
+    expect(container.textContent).toMatch(/2024/)
+    expect(container.textContent).toMatch(/at/)
+    expect(container.textContent).toMatch(/(AM|PM)/)
+  })
+
+  it('should not use colorful borders (blue-500, green-500)', () => {
+    const { container } = render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    // Check that no elements have blue-500 or green-500 border classes
+    const html = container.innerHTML
+    expect(html).not.toContain('border-l-blue-500')
+    expect(html).not.toContain('border-l-green-500')
+    expect(html).not.toContain('bg-blue-50')
+    expect(html).not.toContain('bg-green-50')
+  })
+
+  it('should use monochrome colors (gray-100, gray-900)', () => {
+    const { container } = render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    const html = container.innerHTML
+    // Should have gray backgrounds for chat bubbles
+    expect(html).toContain('bg-gray-100')
+    expect(html).toContain('bg-gray-900')
+  })
+
+  it('should apply chat bubble styling (rounded-2xl, shadow-sm)', () => {
+    const { container } = render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    const html = container.innerHTML
+    expect(html).toContain('rounded-2xl')
+    expect(html).toContain('shadow-sm')
+  })
+
+  it('should limit bubble width to 70% (max-w-[70%])', () => {
+    const { container } = render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    const html = container.innerHTML
+    expect(html).toContain('max-w-[70%]')
+  })
+
+  it('should maintain search functionality', async () => {
+    const user = userEvent.setup()
+
+    render(
+      <MessageTimeline
+        messages={mockMessages}
+        pagination={mockPagination}
+        user1={mockUser1}
+        user2={mockUser2}
+      />
+    )
+
+    const searchInput = screen.getByPlaceholderText('Search messages...')
+    expect(searchInput).toBeInTheDocument()
+
+    await user.type(searchInput, 'user1')
+
+    // Router should be called to update URL with search param
     await waitFor(() => {
-      // In grouped view, messages are grouped by conversation
-      const generalChatHeading = screen.getByText('General Chat')
-      expect(generalChatHeading).toBeInTheDocument()
+      expect(mockRouter.replace).toHaveBeenCalled()
     })
   })
 })

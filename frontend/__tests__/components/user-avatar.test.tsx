@@ -160,61 +160,56 @@ describe('UserAvatar', () => {
     })
   })
 
-  describe('Color Consistency', () => {
-    it('generates consistent colors for the same name', () => {
-      const user = { name: 'John Doe' }
-      
-      const { unmount } = render(<UserAvatar user={user} />)
-      const firstRender = screen.getByTestId('avatar-fallback').className
-      unmount()
+  describe('Monochrome Design', () => {
+    it('renders with gray background regardless of name', () => {
+      const user1 = { name: 'John Doe' };
+      const { unmount } = render(<UserAvatar user={user1} />);
+      const fallback1 = screen.getByTestId('avatar-fallback');
+      expect(fallback1).toHaveClass('bg-gray-200');
+      unmount();
 
-      render(<UserAvatar user={user} />)
-      const secondRender = screen.getByTestId('avatar-fallback').className
-      
-      expect(firstRender).toBe(secondRender)
-    })
+      const user2 = { name: 'Jane Smith' };
+      render(<UserAvatar user={user2} />);
+      const fallback2 = screen.getByTestId('avatar-fallback');
+      expect(fallback2).toHaveClass('bg-gray-200');
+    });
 
-    it('generates different colors for different names', () => {
-      const user1 = { name: 'John Doe' }
-      const user2 = { name: 'Jane Smith' }
-      
-      const { unmount } = render(<UserAvatar user={user1} />)
-      const firstColor = screen.getByTestId('avatar-fallback').className
-      unmount()
+    it('renders with gray text color', () => {
+      const user = { name: 'Test User' };
+      render(<UserAvatar user={user} />);
+      const fallback = screen.getByTestId('avatar-fallback');
+      expect(fallback).toHaveClass('text-gray-700');
+    });
 
-      render(<UserAvatar user={user2} />)
-      const secondColor = screen.getByTestId('avatar-fallback').className
-      
-      // Colors should be different (though this might occasionally fail due to hash collisions)
-      expect(firstColor).not.toBe(secondColor)
-    })
+    it('does not render with white text color', () => {
+      const user = { name: 'Test User' };
+      render(<UserAvatar user={user} />);
+      const fallback = screen.getByTestId('avatar-fallback');
+      expect(fallback).not.toHaveClass('text-white');
+    });
 
-    it('applies consistent fallback color based on name hash', () => {
-      const user = { name: 'Test User' }
-      render(<UserAvatar user={user} />)
-      
-      const fallback = screen.getByTestId('avatar-fallback')
-      expect(fallback).toHaveClass('text-white', 'font-medium')
-      
-      // Should have one of the predefined background colors
-      const classList = fallback.className
+    it('does not render with colorful backgrounds', () => {
+      const user = { name: 'Test User' };
+      render(<UserAvatar user={user} />);
+      const fallback = screen.getByTestId('avatar-fallback');
+      const classList = fallback.className;
       const hasColorClass = [
         'bg-red-500', 'bg-blue-500', 'bg-green-500', 'bg-yellow-500',
         'bg-purple-500', 'bg-pink-500', 'bg-indigo-500', 'bg-teal-500',
         'bg-orange-500', 'bg-emerald-500', 'bg-cyan-500', 'bg-rose-500'
-      ].some(colorClass => classList.includes(colorClass))
+      ].some(colorClass => classList.includes(colorClass));
       
-      expect(hasColorClass).toBe(true)
-    })
+      expect(hasColorClass).toBe(false);
+    });
 
-    it('handles empty name with default color', () => {
-      const user = { name: '' }
-      render(<UserAvatar user={user} />)
-      
-      const fallback = screen.getByTestId('avatar-fallback')
-      expect(fallback).toHaveClass('bg-gray-500')
-    })
-  })
+    it('handles empty name with the standard monochrome colors', () => {
+      const user = { name: '' };
+      render(<UserAvatar user={user} />);
+      const fallback = screen.getByTestId('avatar-fallback');
+      expect(fallback).toHaveClass('bg-gray-200', 'text-gray-700');
+      expect(fallback).not.toHaveClass('bg-gray-500');
+    });
+  });
 
   describe('Custom Styling', () => {
     it('applies custom className', () => {
@@ -275,15 +270,15 @@ describe('UserAvatar', () => {
   describe('Performance and Memoization', () => {
     it('memoizes initials calculation', () => {
       const user = { name: 'John Doe' }
-      
+
       // Mock React.useMemo to verify it's being called
       const mockUseMemo = vi.spyOn(React, 'useMemo')
-      
+
       render(<UserAvatar user={user} />)
-      
-      // useMemo should be called for initials, size classes, and fallback color
-      expect(mockUseMemo).toHaveBeenCalledTimes(3)
-      
+
+      // useMemo should be called for initials and size classes (monochrome design uses static colors)
+      expect(mockUseMemo).toHaveBeenCalledTimes(2)
+
       mockUseMemo.mockRestore()
     })
 

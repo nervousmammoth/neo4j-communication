@@ -71,12 +71,12 @@ export const formatMessageTime = (timestamp: string): string => {
  */
 export const getFullTimestamp = (timestamp: string): string => {
   const date = new Date(timestamp)
-  
+
   // Handle invalid dates
   if (isNaN(date.getTime())) {
     return 'Invalid date'
   }
-  
+
   return date.toLocaleString('en-US', {
     weekday: 'long',
     year: 'numeric',
@@ -87,6 +87,33 @@ export const getFullTimestamp = (timestamp: string): string => {
     second: '2-digit',
     timeZoneName: 'short'
   })
+}
+
+/**
+ * Formats a timestamp for chat bubble display
+ * Returns format like "October 9, 2025 at 2:30 PM"
+ */
+export const formatChatTimestamp = (timestamp: string): string => {
+  const date = new Date(timestamp)
+
+  // Handle invalid dates
+  if (isNaN(date.getTime())) {
+    return 'Invalid date'
+  }
+
+  const dateStr = date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  })
+
+  const timeStr = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  })
+
+  return `${dateStr} at ${timeStr}`
 }
 
 /**
