@@ -10,10 +10,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 
 interface PageProps {
   params: Promise<{ userId1: string; userId2: string }>
-  searchParams: Promise<{ 
+  searchParams: Promise<{
     page?: string
     limit?: string
-    view?: string
     conversation?: string
     primary?: string
     search?: string
@@ -28,10 +27,9 @@ export default async function CommunicationAnalysisPage({
 }: PageProps) {
   const { userId1, userId2 } = await params
   const resolvedSearchParams = await searchParams
-  const { 
-    page = '1', 
+  const {
+    page = '1',
     limit = '50',
-    view = 'list', 
     conversation,
     primary,
     search
@@ -101,7 +99,6 @@ export default async function CommunicationAnalysisPage({
                     pagination={data.pagination}
                     user1={displayUser1}
                     user2={displayUser2}
-                    viewMode={view}
                     searchQuery={search}
                   />
                 </div>
