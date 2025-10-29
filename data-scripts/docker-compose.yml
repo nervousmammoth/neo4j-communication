@@ -67,6 +67,57 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    labels:
+      # Enable Watchtower for this container
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  # ==============================================================================
+  # Watchtower - Automatic Container Updates (STAGING/DEV ONLY)
+  # ==============================================================================
+  # Automatically pulls and deploys new images from Docker Hub
+  #
+  # ⚠️ WARNING: Do NOT use in production! Use manual deployment instead.
+  #
+  # Usage:
+  #   Staging/Dev:  docker compose --profile watchtower up -d
+  #   Production:   docker compose up -d (Watchtower won't start)
+  #
+  # How it works:
+  #   - Checks Docker Hub every 5 minutes for new images
+  #   - Automatically pulls and recreates containers with new versions
+  #   - Rolling restart ensures zero downtime
+  #   - Cleans up old images to save disk space
+  # ==============================================================================
+  watchtower:
+    image: containrrr/watchtower
+    container_name: watchtower
+    profiles:
+      - watchtower  # Only starts when explicitly enabled
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      # Only monitor containers with the watchtower label
+      - WATCHTOWER_LABEL_ENABLE=true
+      # Check for updates every 5 minutes (300 seconds)
+      - WATCHTOWER_POLL_INTERVAL=300
+      # Remove old images after updating
+      - WATCHTOWER_CLEANUP=true
+      # Enable rolling restart (zero downtime)
+      - WATCHTOWER_ROLLING_RESTART=true
+      # Don't update stopped containers
+      - WATCHTOWER_INCLUDE_STOPPED=false
+      # Enable notifications (optional - uncomment to enable)
+      # - WATCHTOWER_NOTIFICATIONS=shoutrrr
+      # - WATCHTOWER_NOTIFICATION_URL=slack://token@channel
+      # Run once at startup then on schedule (not continuous)
+      - WATCHTOWER_RUN_ONCE=false
+      # Enable debug logging
+      - WATCHTOWER_DEBUG=false
+    restart: unless-stopped
+    networks:
+      - neo4j-communication-network
+    depends_on:
+      - neo4j-communication-frontend
 
 volumes:
   neo4j_data:
