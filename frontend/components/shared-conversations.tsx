@@ -70,11 +70,13 @@ export function SharedConversations({
                     {conv.participants.length}
                   </span>
                 </div>
-                
-                {/* Message distribution bar */}
-                <MessageDistributionBar
+
+                {/* Message distribution */}
+                <MessageDistribution
                   user1Count={conv.user1MessageCount}
                   user2Count={conv.user2MessageCount}
+                  user1Name={conv.participants[0]?.name || 'User 1'}
+                  user2Name={conv.participants[1]?.name || 'User 2'}
                 />
               </div>
             </Link>
@@ -85,45 +87,48 @@ export function SharedConversations({
   )
 }
 
-interface MessageDistributionBarProps {
+interface MessageDistributionProps {
   user1Count: number
   user2Count: number
+  user1Name: string
+  user2Name: string
 }
 
-function MessageDistributionBar({ user1Count, user2Count }: MessageDistributionBarProps) {
+function MessageDistribution({
+  user1Count,
+  user2Count,
+  user1Name,
+  user2Name
+}: MessageDistributionProps) {
   const total = user1Count + user2Count
-  
+
+  // Handle edge case: no messages
   if (total === 0) {
     return (
-      <div 
-        className="h-2 bg-muted rounded-full"
+      <div
+        className="text-xs text-muted-foreground mt-1"
         data-testid="message-distribution"
-      />
+      >
+        No messages
+      </div>
     )
   }
-  
-  const user1Percentage = (user1Count / total) * 100
-  const user2Percentage = (user2Count / total) * 100
-  
+
+  // Calculate percentages (rounded to whole numbers)
+  // Derive second percentage from first to guarantee sum = 100%
+  const user1Percentage = Math.round((user1Count / total) * 100)
+  const user2Percentage = 100 - user1Percentage
+
+  // Create detailed tooltip text
+  const tooltipText = `${user1Name}: ${user1Count} (${user1Percentage}%) • ${user2Name}: ${user2Count} (${user2Percentage}%)`
+
   return (
-    <div 
-      className="h-2 bg-muted rounded-full overflow-hidden flex"
+    <div
+      className="text-xs text-muted-foreground mt-1"
+      title={tooltipText}
       data-testid="message-distribution"
     >
-      <div
-        className="bg-blue-500 transition-all"
-        style={{ width: `${user1Percentage}%` }}
-        data-testid="distribution-segment"
-        title={`User 1: ${user1Count} messages (${user1Percentage.toFixed(1)}%)`}
-      />
-      <div
-        className="bg-green-500 transition-all"
-        style={{ width: `${user2Percentage}%` }}
-        data-testid="distribution-segment"
-        title={`User 2: ${user2Count} messages (${user2Percentage.toFixed(1)}%)`}
-      />
+      {user1Percentage}% / {user2Percentage}%
     </div>
   )
 }
-
-export { MessageDistributionBar }

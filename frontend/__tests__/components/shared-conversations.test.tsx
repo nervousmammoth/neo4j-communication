@@ -32,8 +32,12 @@ describe('SharedConversations', () => {
       messageCount: 150,
       user1MessageCount: 75,
       user2MessageCount: 75,
-      participants: ['user1', 'user2', 'user3'],
-      lastActivity: '2024-01-15T09:00:00Z',
+      participants: [
+        { userId: 'user1', name: 'User One', email: 'user1@test.com', avatar: null, conversationCount: 3 },
+        { userId: 'user2', name: 'User Two', email: 'user2@test.com', avatar: null, conversationCount: 3 },
+        { userId: 'user3', name: 'User Three', email: 'user3@test.com', avatar: null, conversationCount: 1 }
+      ],
+      lastMessageTimestamp: '2024-01-15T09:00:00Z',
     },
     {
       conversationId: 'conv2',
@@ -42,8 +46,11 @@ describe('SharedConversations', () => {
       messageCount: 50,
       user1MessageCount: 30,
       user2MessageCount: 20,
-      participants: ['user1', 'user2'],
-      lastActivity: '2024-01-14T15:00:00Z',
+      participants: [
+        { userId: 'user1', name: 'User One', email: 'user1@test.com', avatar: null, conversationCount: 2 },
+        { userId: 'user2', name: 'User Two', email: 'user2@test.com', avatar: null, conversationCount: 2 }
+      ],
+      lastMessageTimestamp: '2024-01-14T15:00:00Z',
     },
     {
       conversationId: 'conv3',
@@ -52,8 +59,13 @@ describe('SharedConversations', () => {
       messageCount: 200,
       user1MessageCount: 100,
       user2MessageCount: 100,
-      participants: ['user1', 'user2', 'user3', 'user4'],
-      lastActivity: '2024-01-13T10:00:00Z',
+      participants: [
+        { userId: 'user1', name: 'User One', email: 'user1@test.com', avatar: null, conversationCount: 2 },
+        { userId: 'user2', name: 'User Two', email: 'user2@test.com', avatar: null, conversationCount: 2 },
+        { userId: 'user3', name: 'User Three', email: 'user3@test.com', avatar: null, conversationCount: 1 },
+        { userId: 'user4', name: 'User Four', email: 'user4@test.com', avatar: null, conversationCount: 1 }
+      ],
+      lastMessageTimestamp: '2024-01-13T10:00:00Z',
     },
   ]
 
@@ -172,24 +184,25 @@ describe('SharedConversations', () => {
       messageCount: 100,
       user1MessageCount: 50,
       user2MessageCount: 50,
-      participants: ['user1', 'user2'],
-      lastActivity: '2024-01-15T09:00:00Z',
+      participants: [
+        { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+        { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+      ],
+      lastMessageTimestamp: '2024-01-15T09:00:00Z',
     }
 
-    const { container } = render(
+    render(
       <SharedConversations
         conversations={[equalConversation]}
         selectedId={undefined}
       />
     )
 
-    const distributionBar = container.querySelector('[data-testid="message-distribution"]')
-    expect(distributionBar).toBeInTheDocument()
-    
-    // Check for 50% widths
-    const bars = distributionBar?.querySelectorAll('[data-testid="distribution-segment"]')
-    expect(bars?.[0]).toHaveStyle({ width: '50%' })
-    expect(bars?.[1]).toHaveStyle({ width: '50%' })
+    const distribution = screen.getByTestId('message-distribution')
+    expect(distribution).toBeInTheDocument()
+
+    // Check for 50/50 text display
+    expect(distribution.textContent).toBe('50% / 50%')
   })
 
   it('should handle conversations with no messages', () => {
@@ -200,8 +213,11 @@ describe('SharedConversations', () => {
       messageCount: 0,
       user1MessageCount: 0,
       user2MessageCount: 0,
-      participants: ['user1', 'user2'],
-      lastActivity: '2024-01-15T09:00:00Z',
+      participants: [
+        { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+        { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+      ],
+      lastMessageTimestamp: '2024-01-15T09:00:00Z',
     }
 
     render(
@@ -231,5 +247,284 @@ describe('SharedConversations', () => {
     expect(firstLink).toHaveAttribute('href', expect.stringContaining('page=2'))
     expect(firstLink).toHaveAttribute('href', expect.stringContaining('view=timeline'))
     expect(firstLink).toHaveAttribute('href', expect.stringContaining('conversation=conv1'))
+  })
+
+  describe('MessageDistribution Component (New Text-Based Design)', () => {
+    describe('Percentage Display', () => {
+      it('should display percentages in "X% / Y%" format', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 41,
+          user1MessageCount: 16,
+          user2MessageCount: 25,
+          participants: [
+            { userId: 'user1', name: 'Verna McCullough', email: 'verna@test.com', avatar: null, conversationCount: 2 },
+            { userId: 'user2', name: 'Dr. Betsy Russel', email: 'betsy@test.com', avatar: null, conversationCount: 2 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.textContent).toBe('39% / 61%')
+      })
+
+      it('should round percentages to whole numbers', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 4,
+          user1MessageCount: 1,
+          user2MessageCount: 3,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.textContent).toBe('25% / 75%')
+      })
+
+      it('should handle equal distribution', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 40,
+          user1MessageCount: 20,
+          user2MessageCount: 20,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.textContent).toBe('50% / 50%')
+      })
+    })
+
+    describe('Edge Cases', () => {
+      it('should display "No messages" when total is zero', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Empty Conversation',
+          type: 'group',
+          messageCount: 0,
+          user1MessageCount: 0,
+          user2MessageCount: 0,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.textContent).toBe('No messages')
+      })
+
+      it('should handle one user with zero messages', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 10,
+          user1MessageCount: 0,
+          user2MessageCount: 10,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.textContent).toBe('0% / 100%')
+      })
+
+      it('should handle large numbers correctly', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 1500,
+          user1MessageCount: 500,
+          user2MessageCount: 1000,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.textContent).toBe('33% / 67%')
+      })
+
+      it('should guarantee percentages sum to exactly 100% (rounding edge case)', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 200,
+          user1MessageCount: 99,
+          user2MessageCount: 101,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        // Should show "50% / 50%" not "50% / 51%" to guarantee 100% sum
+        expect(element.textContent).toBe('50% / 50%')
+
+        // Verify percentages sum to 100%
+        const text = element.textContent || ''
+        const percentages = text.split(' / ').map(s => parseInt(s))
+        expect(percentages[0] + percentages[1]).toBe(100)
+      })
+
+      it('should handle conversations with fewer than 2 participants', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Single Participant',
+          type: 'direct',
+          messageCount: 10,
+          user1MessageCount: 10,
+          user2MessageCount: 0,
+          participants: [
+            { userId: 'user1', name: 'Only User', email: 'user@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        // Should gracefully handle missing second participant
+        expect(element).toBeInTheDocument()
+        expect(element.textContent).toBe('100% / 0%')
+
+        // Tooltip should use fallback name for missing participant
+        const tooltip = element.getAttribute('title')
+        expect(tooltip).toContain('Only User')
+        expect(tooltip).toContain('User 2') // Fallback name
+      })
+    })
+
+    describe('Tooltip', () => {
+      it('should include detailed breakdown with names and counts', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 41,
+          user1MessageCount: 16,
+          user2MessageCount: 25,
+          participants: [
+            { userId: 'user1', name: 'Verna McCullough', email: 'verna@test.com', avatar: null, conversationCount: 2 },
+            { userId: 'user2', name: 'Dr. Betsy Russel', email: 'betsy@test.com', avatar: null, conversationCount: 2 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.getAttribute('title')).toBe(
+          'Verna McCullough: 16 (39%) • Dr. Betsy Russel: 25 (61%)'
+        )
+      })
+
+      it('should not have tooltip for zero messages case', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Empty Conversation',
+          type: 'group',
+          messageCount: 0,
+          user1MessageCount: 0,
+          user2MessageCount: 0,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.getAttribute('title')).toBeNull()
+      })
+    })
+
+    describe('Styling', () => {
+      it('should apply correct CSS classes', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 30,
+          user1MessageCount: 10,
+          user2MessageCount: 20,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        expect(element.className).toContain('text-xs')
+        expect(element.className).toContain('text-muted-foreground')
+        expect(element.className).toContain('mt-1')
+      })
+
+      it('should not contain color classes from old implementation', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 30,
+          user1MessageCount: 10,
+          user2MessageCount: 20,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        const { container } = render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const html = container.innerHTML
+        expect(html).not.toContain('bg-blue-500')
+        expect(html).not.toContain('bg-green-500')
+      })
+    })
   })
 })
