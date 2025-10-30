@@ -378,6 +378,60 @@ describe('SharedConversations', () => {
         const element = screen.getByTestId('message-distribution')
         expect(element.textContent).toBe('33% / 67%')
       })
+
+      it('should guarantee percentages sum to exactly 100% (rounding edge case)', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Test Conversation',
+          type: 'group',
+          messageCount: 200,
+          user1MessageCount: 99,
+          user2MessageCount: 101,
+          participants: [
+            { userId: 'user1', name: 'User A', email: 'a@test.com', avatar: null, conversationCount: 1 },
+            { userId: 'user2', name: 'User B', email: 'b@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        // Should show "50% / 50%" not "50% / 51%" to guarantee 100% sum
+        expect(element.textContent).toBe('50% / 50%')
+
+        // Verify percentages sum to 100%
+        const text = element.textContent || ''
+        const percentages = text.split(' / ').map(s => parseInt(s))
+        expect(percentages[0] + percentages[1]).toBe(100)
+      })
+
+      it('should handle conversations with fewer than 2 participants', () => {
+        const conversation: SharedConversation = {
+          conversationId: 'conv1',
+          title: 'Single Participant',
+          type: 'direct',
+          messageCount: 10,
+          user1MessageCount: 10,
+          user2MessageCount: 0,
+          participants: [
+            { userId: 'user1', name: 'Only User', email: 'user@test.com', avatar: null, conversationCount: 1 }
+          ],
+          lastMessageTimestamp: '2025-10-09T12:16:00Z',
+        }
+
+        render(<SharedConversations conversations={[conversation]} selectedId={undefined} />)
+
+        const element = screen.getByTestId('message-distribution')
+        // Should gracefully handle missing second participant
+        expect(element).toBeInTheDocument()
+        expect(element.textContent).toBe('100% / 0%')
+
+        // Tooltip should use fallback name for missing participant
+        const tooltip = element.getAttribute('title')
+        expect(tooltip).toContain('Only User')
+        expect(tooltip).toContain('User 2') // Fallback name
+      })
     })
 
     describe('Tooltip', () => {

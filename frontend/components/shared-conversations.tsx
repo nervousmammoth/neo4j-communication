@@ -115,8 +115,9 @@ function MessageDistribution({
   }
 
   // Calculate percentages (rounded to whole numbers)
+  // Derive second percentage from first to guarantee sum = 100%
   const user1Percentage = Math.round((user1Count / total) * 100)
-  const user2Percentage = Math.round((user2Count / total) * 100)
+  const user2Percentage = 100 - user1Percentage
 
   // Create detailed tooltip text
   const tooltipText = `${user1Name}: ${user1Count} (${user1Percentage}%) • ${user2Name}: ${user2Count} (${user2Percentage}%)`
