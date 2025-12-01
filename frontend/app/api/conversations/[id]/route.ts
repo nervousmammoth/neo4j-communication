@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { executeReadQuery } from '@/lib/neo4j'
+import { getConversationById } from '@/lib/neo4j/queries/conversations'
 
 export async function GET(
   request: NextRequest,
@@ -15,44 +15,15 @@ export async function GET(
   }
 
   try {
-    const result = await executeReadQuery(
-      `
-      MATCH (c:Conversation {conversationId: $conversationId})
-      OPTIONAL MATCH (u:User)-[:PARTICIPATES_IN]->(c)
-      WITH c, collect(DISTINCT u {
-        userId: u.userId,
-        name: u.name,
-        email: u.email,
-        avatarUrl: u.avatarUrl,
-        status: u.status
-      }) as participants
-      RETURN {
-        conversationId: c.conversationId,
-        title: c.title,
-        type: c.type,
-        priority: c.priority,
-        createdAt: c.createdAt,
-        tags: c.tags,
-        participants: participants
-      } as conversation
-      `,
-      { conversationId }
-    )
+    const conversation = await getConversationById(conversationId)
 
-    if (result.records.length === 0) {
+    if (!conversation) {
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }
       )
     }
 
-    const conversation = result.records[0].get('conversation')
-    
-    // Convert Neo4j DateTime to ISO string
-    if (conversation.createdAt && typeof conversation.createdAt === 'object' && 'year' in conversation.createdAt) {
-      conversation.createdAt = conversation.createdAt.toString()
-    }
-    
     return NextResponse.json(conversation)
   } catch (error) {
     console.error('Error fetching conversation:', error)

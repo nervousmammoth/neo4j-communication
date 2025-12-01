@@ -2,15 +2,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import RootLayout, { metadata } from '@/app/layout'
 
-// Mock next/font/google
-vi.mock('next/font/google', () => {
-  const geistSans = { variable: '--font-geist-sans' }
-  const geistMono = { variable: '--font-geist-mono' }
-  return {
-    Geist: () => geistSans,
-    Geist_Mono: () => geistMono,
-  }
-})
+// Note: next/font/local is mocked in vitest.setup.ts
+// The mock returns the variable property from the config passed to localFont
 
 // Mock the globals.css import
 vi.mock('@/app/globals.css', () => ({}))
@@ -128,17 +121,17 @@ describe('RootLayout', () => {
   })
 
   it('uses correct font imports', async () => {
-    // Verify the mocked fonts are used through the mock
-    const { Geist, Geist_Mono } = await import('next/font/google')
-    const geistSansResult = Geist({
-      subsets: ['latin'],
+    // Verify the mocked localFont is used through the mock
+    const localFont = (await import('next/font/local')).default
+    const geistSansResult = localFont({
+      src: [],
       variable: '--font-geist-sans'
     })
-    const geistMonoResult = Geist_Mono({
-      subsets: ['latin'],
+    const geistMonoResult = localFont({
+      src: [],
       variable: '--font-geist-mono'
     })
-    
+
     expect(geistSansResult.variable).toBe('--font-geist-sans')
     expect(geistMonoResult.variable).toBe('--font-geist-mono')
   })
