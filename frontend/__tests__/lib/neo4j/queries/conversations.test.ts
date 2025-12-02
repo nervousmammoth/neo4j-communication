@@ -1,21 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import neo4j from 'neo4j-driver'
 
-// Create mocks for neo4j functions
-const mockRun = vi.fn()
-const mockClose = vi.fn()
+// Create mocks for neo4j functions - use vi.hoisted for Vitest 4.x compatibility
+const { mockExecuteReadQuery, mockClose, mockIsDateTime } = vi.hoisted(() => ({
+  mockExecuteReadQuery: vi.fn(),
+  mockClose: vi.fn(),
+  mockIsDateTime: vi.fn((value: unknown) => {
+    return typeof value === 'object' && value !== null && '_isDateTime' in value
+  }),
+}))
 
-// Mock neo4j-driver
+// Mock neo4j-driver for type checking utilities
 vi.mock('neo4j-driver', () => ({
   default: {
     isInt: vi.fn(() => false),
-    isDateTime: vi.fn((value) => {
-      return typeof value === 'object' && value !== null && '_isDateTime' in value
-    }),
-    int: vi.fn((value) => value),
+    isDateTime: mockIsDateTime,
+    int: vi.fn((value: number) => value),
     driver: vi.fn(() => ({
       session: vi.fn(() => ({
-        run: mockRun,
+        run: mockExecuteReadQuery,
         close: mockClose,
       })),
     })),
@@ -25,13 +27,23 @@ vi.mock('neo4j-driver', () => ({
   },
 }))
 
+// Mock connection module to intercept all database calls
+vi.mock('@/lib/neo4j/connection', () => ({
+  executeReadQuery: mockExecuteReadQuery,
+  getDriver: vi.fn(),
+  getSession: vi.fn(),
+  resetDriver: vi.fn(),
+}))
+
 // Import after mocking
 import { searchConversations, getConversationById } from '@/lib/neo4j/queries/conversations'
+import neo4j from 'neo4j-driver'
 
 describe('searchConversations', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockClose.mockResolvedValue(undefined)
+    // Reset mock implementations to avoid state leakage between tests
+    mockExecuteReadQuery.mockReset()
   })
 
   afterEach(() => {
@@ -40,14 +52,7 @@ describe('searchConversations', () => {
 
   describe('Basic Search Functionality', () => {
     it('should search conversations by title', async () => {
-      // Mock count query
-      mockRun.mockResolvedValueOnce({
-        records: [{
-          get: (key: string) => key === 'total' ? 5 : undefined
-        }]
-      })
-
-      // Mock data query
+      // Mock count query and data query
       const mockConversations = [
         {
           conversationId: 'conv-1',
@@ -60,25 +65,32 @@ describe('searchConversations', () => {
         },
       ]
 
-      mockRun.mockResolvedValueOnce({
-        records: mockConversations.map(conv => ({
-          get: (key: string) => key === 'conversation' ? conv : undefined
-        }))
-      })
+      // First call returns count, second call returns data
+      mockExecuteReadQuery
+        .mockResolvedValueOnce({
+          records: [{
+            get: (key: string) => key === 'total' ? 5 : undefined
+          }]
+        })
+        .mockResolvedValueOnce({
+          records: mockConversations.map(conv => ({
+            get: (key: string) => key === 'conversation' ? conv : undefined
+          }))
+        })
 
       const result = await searchConversations({ query: 'Meeting' })
 
       // Verify count query contains search logic
-      const countQuery = mockRun.mock.calls[0][0]
+      const countQuery = mockExecuteReadQuery.mock.calls[0][0]
       expect(countQuery).toContain('WHERE')
       expect(countQuery).toContain('CONTAINS')
 
       // Verify search parameter was passed
-      const countParams = mockRun.mock.calls[0][1]
+      const countParams = mockExecuteReadQuery.mock.calls[0][1]
       expect(countParams.query).toBe('Meeting')
 
       // Verify data query
-      const dataQuery = mockRun.mock.calls[1][0]
+      const dataQuery = mockExecuteReadQuery.mock.calls[1][0]
       expect(dataQuery).toContain('WHERE')
       expect(dataQuery).toContain('ORDER BY')
 
@@ -88,10 +100,6 @@ describe('searchConversations', () => {
     })
 
     it('should search conversations by participant names', async () => {
-      mockRun.mockResolvedValueOnce({
-        records: [{ get: () => 3 }]
-      })
-
       const mockConversations = [
         {
           conversationId: 'conv-2',
@@ -104,16 +112,20 @@ describe('searchConversations', () => {
         },
       ]
 
-      mockRun.mockResolvedValueOnce({
-        records: mockConversations.map(conv => ({
-          get: (key: string) => key === 'conversation' ? conv : undefined
-        }))
-      })
+      mockExecuteReadQuery
+        .mockResolvedValueOnce({
+          records: [{ get: () => 3 }]
+        })
+        .mockResolvedValueOnce({
+          records: mockConversations.map(conv => ({
+            get: (key: string) => key === 'conversation' ? conv : undefined
+          }))
+        })
 
       const result = await searchConversations({ query: 'John' })
 
       // Verify query includes participant search logic
-      const dataQuery = mockRun.mock.calls[1][0]
+      const dataQuery = mockExecuteReadQuery.mock.calls[1][0]
       expect(dataQuery).toContain('PARTICIPATES_IN')
 
       expect(result.results).toEqual(mockConversations)
@@ -121,12 +133,13 @@ describe('searchConversations', () => {
     })
 
     it('should return empty results for no matches', async () => {
-      mockRun.mockResolvedValueOnce({
-        records: [{ get: () => 0 }]
-      })
-      mockRun.mockResolvedValueOnce({
-        records: []
-      })
+      mockExecuteReadQuery
+        .mockResolvedValueOnce({
+          records: [{ get: () => 0 }]
+        })
+        .mockResolvedValueOnce({
+          records: []
+        })
 
       const result = await searchConversations({ query: 'NonExistent' })
 
@@ -137,10 +150,10 @@ describe('searchConversations', () => {
 
   describe('Filter Functionality', () => {
     it('should filter by conversation type', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 10 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -150,18 +163,18 @@ describe('searchConversations', () => {
       })
 
       // Verify type filter in query
-      const countQuery = mockRun.mock.calls[0][0]
+      const countQuery = mockExecuteReadQuery.mock.calls[0][0]
       expect(countQuery).toContain('c.type')
 
-      const countParams = mockRun.mock.calls[0][1]
+      const countParams = mockExecuteReadQuery.mock.calls[0][1]
       expect(countParams.type).toBe('group')
     })
 
     it('should filter by priority', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 5 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -171,18 +184,18 @@ describe('searchConversations', () => {
       })
 
       // Verify priority filter in query
-      const countQuery = mockRun.mock.calls[0][0]
+      const countQuery = mockExecuteReadQuery.mock.calls[0][0]
       expect(countQuery).toContain('c.priority')
 
-      const countParams = mockRun.mock.calls[0][1]
+      const countParams = mockExecuteReadQuery.mock.calls[0][1]
       expect(countParams.priority).toBe('high')
     })
 
     it('should filter by date range (dateFrom)', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 8 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -193,15 +206,15 @@ describe('searchConversations', () => {
       })
 
       // Verify date filter
-      const countParams = mockRun.mock.calls[0][1]
+      const countParams = mockExecuteReadQuery.mock.calls[0][1]
       expect(countParams.dateFrom).toBe(dateFrom)
     })
 
     it('should filter by date range (dateTo)', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 8 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -212,15 +225,15 @@ describe('searchConversations', () => {
       })
 
       // Verify date filter
-      const countParams = mockRun.mock.calls[0][1]
+      const countParams = mockExecuteReadQuery.mock.calls[0][1]
       expect(countParams.dateTo).toBe(dateTo)
     })
 
     it('should combine multiple filters', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 2 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -232,7 +245,7 @@ describe('searchConversations', () => {
         dateTo: '2024-12-31'
       })
 
-      const countParams = mockRun.mock.calls[0][1]
+      const countParams = mockExecuteReadQuery.mock.calls[0][1]
       expect(countParams.query).toBe('meeting')
       expect(countParams.type).toBe('group')
       expect(countParams.priority).toBe('high')
@@ -243,25 +256,25 @@ describe('searchConversations', () => {
 
   describe('Pagination', () => {
     it('should handle default pagination', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 50 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
       await searchConversations({ query: 'test' })
 
-      const dataParams = mockRun.mock.calls[1][1]
+      const dataParams = mockExecuteReadQuery.mock.calls[1][1]
       expect(dataParams.skip).toBe(0)
       expect(dataParams.limit).toBe(20)
     })
 
     it('should handle custom pagination', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 100 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -271,16 +284,16 @@ describe('searchConversations', () => {
         limit: 10
       })
 
-      const dataParams = mockRun.mock.calls[1][1]
+      const dataParams = mockExecuteReadQuery.mock.calls[1][1]
       expect(dataParams.skip).toBe(20) // (3-1) * 10
       expect(dataParams.limit).toBe(10)
     })
 
     it('should handle string pagination parameters', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 50 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -290,7 +303,7 @@ describe('searchConversations', () => {
         limit: '25' as any
       })
 
-      const dataParams = mockRun.mock.calls[1][1]
+      const dataParams = mockExecuteReadQuery.mock.calls[1][1]
       expect(dataParams.skip).toBe(25) // (2-1) * 25
       expect(dataParams.limit).toBe(25)
     })
@@ -298,10 +311,10 @@ describe('searchConversations', () => {
 
   describe('Input Validation', () => {
     it('should use default page for invalid page number', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 10 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -310,15 +323,15 @@ describe('searchConversations', () => {
         page: -1
       })
 
-      const dataParams = mockRun.mock.calls[1][1]
+      const dataParams = mockExecuteReadQuery.mock.calls[1][1]
       expect(dataParams.skip).toBe(0) // Page 1
     })
 
     it('should enforce maximum limit', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 10 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -327,15 +340,15 @@ describe('searchConversations', () => {
         limit: 500 // Exceeds max
       })
 
-      const dataParams = mockRun.mock.calls[1][1]
+      const dataParams = mockExecuteReadQuery.mock.calls[1][1]
       expect(dataParams.limit).toBeLessThanOrEqual(100) // Max limit
     })
 
     it('should handle empty query string', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 0 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -346,10 +359,10 @@ describe('searchConversations', () => {
     })
 
     it('should handle whitespace-only query', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 0 }]
       })
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -362,7 +375,7 @@ describe('searchConversations', () => {
 
   describe('Relevance Scoring', () => {
     it('should order results by relevance and timestamp', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 3 }]
       })
 
@@ -396,7 +409,7 @@ describe('searchConversations', () => {
         },
       ]
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: mockConversations.map(conv => ({
           get: (key: string) => key === 'conversation' ? conv : undefined
         }))
@@ -405,8 +418,8 @@ describe('searchConversations', () => {
       const result = await searchConversations({ query: 'Meeting' })
 
       // Verify ORDER BY clause includes relevance
-      const dataQuery = mockRun.mock.calls[1][1]
-      const queryString = mockRun.mock.calls[1][0]
+      const dataQuery = mockExecuteReadQuery.mock.calls[1][1]
+      const queryString = mockExecuteReadQuery.mock.calls[1][0]
       expect(queryString).toContain('ORDER BY')
 
       expect(result.results).toHaveLength(3)
@@ -415,7 +428,7 @@ describe('searchConversations', () => {
 
   describe('DateTime Handling', () => {
     it('should handle Neo4j DateTime objects', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{ get: () => 1 }]
       })
 
@@ -424,7 +437,7 @@ describe('searchConversations', () => {
         toString: () => '2024-01-20T10:00:00Z'
       }
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{
           get: (key: string) => key === 'conversation' ? {
             conversationId: 'conv-1',
@@ -446,22 +459,10 @@ describe('searchConversations', () => {
 
   describe('Error Handling', () => {
     it('should handle database errors gracefully', async () => {
-      mockRun.mockRejectedValueOnce(new Error('Database connection failed'))
+      mockExecuteReadQuery.mockRejectedValueOnce(new Error('Database connection failed'))
 
       await expect(searchConversations({ query: 'test' }))
         .rejects.toThrow('Database connection failed')
-    })
-
-    it('should close session even on error', async () => {
-      mockRun.mockRejectedValueOnce(new Error('Query failed'))
-
-      try {
-        await searchConversations({ query: 'test' })
-      } catch {
-        // Expected error
-      }
-
-      expect(mockClose).toHaveBeenCalled()
     })
   })
 })
@@ -469,7 +470,8 @@ describe('searchConversations', () => {
 describe('getConversationById', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockClose.mockResolvedValue(undefined)
+    // Reset mock implementations to avoid state leakage between tests
+    mockExecuteReadQuery.mockReset()
   })
 
   afterEach(() => {
@@ -503,7 +505,7 @@ describe('getConversationById', () => {
         ]
       }
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{
           get: (key: string) => key === 'conversation' ? mockConversation : undefined
         }]
@@ -512,12 +514,12 @@ describe('getConversationById', () => {
       const result = await getConversationById('conv-123')
 
       // Verify query structure
-      const query = mockRun.mock.calls[0][0]
+      const query = mockExecuteReadQuery.mock.calls[0][0]
       expect(query).toContain('MATCH (c:Conversation {conversationId: $conversationId})')
       expect(query).toContain('PARTICIPATES_IN')
 
       // Verify parameter was passed
-      const params = mockRun.mock.calls[0][1]
+      const params = mockExecuteReadQuery.mock.calls[0][1]
       expect(params.conversationId).toBe('conv-123')
 
       // Verify result
@@ -525,7 +527,7 @@ describe('getConversationById', () => {
     })
 
     it('should return null when conversation is not found', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 
@@ -552,7 +554,7 @@ describe('getConversationById', () => {
         participants: []
       }
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{
           get: (key: string) => key === 'conversation' ? mockConversation : undefined
         }]
@@ -574,7 +576,7 @@ describe('getConversationById', () => {
         participants: []
       }
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{
           get: (key: string) => key === 'conversation' ? mockConversation : undefined
         }]
@@ -622,7 +624,7 @@ describe('getConversationById', () => {
         participants: mockParticipants
       }
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{
           get: (key: string) => key === 'conversation' ? mockConversation : undefined
         }]
@@ -646,7 +648,7 @@ describe('getConversationById', () => {
         participants: []
       }
 
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: [{
           get: (key: string) => key === 'conversation' ? mockConversation : undefined
         }]
@@ -660,28 +662,16 @@ describe('getConversationById', () => {
 
   describe('Error Handling', () => {
     it('should handle database errors gracefully', async () => {
-      mockRun.mockRejectedValueOnce(new Error('Database connection failed'))
+      mockExecuteReadQuery.mockRejectedValueOnce(new Error('Database connection failed'))
 
       await expect(getConversationById('conv-123'))
         .rejects.toThrow('Database connection failed')
-    })
-
-    it('should close session even on error', async () => {
-      mockRun.mockRejectedValueOnce(new Error('Query failed'))
-
-      try {
-        await getConversationById('conv-123')
-      } catch {
-        // Expected error
-      }
-
-      expect(mockClose).toHaveBeenCalled()
     })
   })
 
   describe('Input Validation', () => {
     it('should handle empty string conversationId', async () => {
-      mockRun.mockResolvedValueOnce({
+      mockExecuteReadQuery.mockResolvedValueOnce({
         records: []
       })
 

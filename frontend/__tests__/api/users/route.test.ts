@@ -1,39 +1,62 @@
 import { NextRequest } from 'next/server'
 import { GET } from '@/app/api/users/route'
+import { vi } from 'vitest'
+
+// Create hoisted mock functions for Vitest 4.x compatibility
+const { mockGetUsers, mockTestConnection, mockExecuteReadQuery } = vi.hoisted(() => ({
+  mockGetUsers: vi.fn(),
+  mockTestConnection: vi.fn().mockResolvedValue(true),
+  mockExecuteReadQuery: vi.fn(),
+}))
 
 // Mock the Neo4j module
 vi.mock('@/lib/neo4j', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/neo4j')>()
   return {
     ...actual,
-    executeReadQuery: vi.fn(),
-    getUsers: vi.fn(),
-    testConnection: vi.fn().mockResolvedValue(true)
+    executeReadQuery: mockExecuteReadQuery,
+    getUsers: mockGetUsers,
+    testConnection: mockTestConnection,
   }
 })
 
-// Mock crypto module for ETag generation
+// Mock crypto module for ETag generation - use vi.hoisted for Vitest 4.x compatibility
+// Returns hash based on actual data content to ensure consistent ETags for same data
+const { mockCreateHash } = vi.hoisted(() => {
+  return {
+    mockCreateHash: vi.fn(() => {
+      let dataContent = ''
+      return {
+        update: vi.fn((data: string) => {
+          dataContent += data
+          return { update: vi.fn().mockReturnThis(), digest: vi.fn(() => dataContent.length.toString().padStart(32, 'abcdef1234567890')) }
+        }),
+        digest: vi.fn(() => dataContent.length.toString().padStart(32, 'abcdef1234567890'))
+      }
+    }),
+  }
+})
+
 vi.mock('crypto', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal<typeof import('crypto')>()
   return {
     ...actual,
-    createHash: vi.fn(() => ({
-      update: vi.fn(() => ({
-        digest: vi.fn(() => 'mock-users-hash-12345')
-      }))
-    }))
+    default: {
+      ...actual,
+      createHash: mockCreateHash,
+    },
+    createHash: mockCreateHash,
   }
 })
 
 describe('/api/users route', () => {
-  beforeEach(async () => {
+  beforeEach(() => {
     vi.clearAllMocks()
     // Enable ETags for this test suite
     process.env.ETAGS_ENABLED = 'true'
-    
-    // Mock testConnection to return true by default (unless overridden in specific tests)
-    const { testConnection } = await import('@/lib/neo4j')
-    ;(testConnection as any).mockResolvedValue(true)
+
+    // Reset testConnection mock to return true by default
+    mockTestConnection.mockResolvedValue(true)
   })
 
   afterEach(() => {
@@ -73,8 +96,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users')
       const response = await GET(request)
@@ -114,8 +136,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users?page=2&limit=10')
       const response = await GET(request)
@@ -127,7 +148,7 @@ describe('/api/users route', () => {
       expect(data.pagination.limit).toBe(10)
       
       // Verify getUsers was called with correct parameters
-      expect(getUsers).toHaveBeenCalledWith({ page: 2, limit: 10 })
+      expect(mockGetUsers).toHaveBeenCalledWith({ page: 2, limit: 10 })
     })
 
     it('should handle invalid pagination parameters gracefully', async () => {
@@ -142,8 +163,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users?page=-1&limit=abc')
       const response = await GET(request)
@@ -151,43 +171,40 @@ describe('/api/users route', () => {
       expect(response.status).toBe(200)
       
       // Should use default values for invalid parameters
-      expect(getUsers).toHaveBeenCalledWith({ page: 1, limit: 20 })
+      expect(mockGetUsers).toHaveBeenCalledWith({ page: 1, limit: 20 })
     })
   })
 
   describe('Error handling', () => {
     it('should return 503 when database connection fails', async () => {
       // Mock connection test to fail
-      const { testConnection } = await import('@/lib/neo4j')
-      ;(testConnection as any).mockResolvedValue(false)
+      mockTestConnection.mockResolvedValue(false)
 
       const request = new NextRequest('http://localhost:3000/api/users')
       const response = await GET(request)
 
       expect(response.status).toBe(503)
-      
+
       const data = await response.json()
       expect(data.error).toBe('Database connection failed')
     })
 
     it('should return 500 when getUsers throws an error', async () => {
       // Mock the getUsers function to throw an error
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockRejectedValue(new Error('Neo4j query failed'))
+      mockGetUsers.mockRejectedValue(new Error('Neo4j query failed'))
 
       const request = new NextRequest('http://localhost:3000/api/users')
       const response = await GET(request)
 
       expect(response.status).toBe(500)
-      
+
       const data = await response.json()
       expect(data.error).toBe('Failed to fetch users')
     })
 
     it('should not return ETag header on error responses', async () => {
       // Mock the getUsers function to throw an error
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockRejectedValue(new Error('Database error'))
+      mockGetUsers.mockRejectedValue(new Error('Database error'))
 
       const request = new NextRequest('http://localhost:3000/api/users')
       const response = await GET(request)
@@ -220,8 +237,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users?page=1&limit=20')
       const response = await GET(request)
@@ -243,8 +259,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       // First request to get the ETag
       const initialRequest = new NextRequest('http://localhost:3000/api/users?page=1&limit=20')
@@ -282,8 +297,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function for first request
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValueOnce(mockData1)
+      mockGetUsers.mockResolvedValueOnce(mockData1)
 
       const request1 = new NextRequest('http://localhost:3000/api/users?page=1&limit=20')
       const response1 = await GET(request1)
@@ -293,7 +307,7 @@ describe('/api/users route', () => {
       expect(etag1).toBeTruthy()
 
       // Mock the getUsers function for second request
-      ;(getUsers as any).mockResolvedValueOnce(mockData2)
+      mockGetUsers.mockResolvedValueOnce(mockData2)
 
       const request2 = new NextRequest('http://localhost:3000/api/users?page=1&limit=20')
       const response2 = await GET(request2)
@@ -327,8 +341,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users?page=1&limit=20')
       const response = await GET(request)
@@ -362,8 +375,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users?page=1&limit=999999')
       const response = await GET(request)
@@ -371,7 +383,7 @@ describe('/api/users route', () => {
       expect(response.status).toBe(200)
       
       // Should cap limit at reasonable maximum (e.g., 100)
-      expect(getUsers).toHaveBeenCalledWith({ page: 1, limit: 100 })
+      expect(mockGetUsers).toHaveBeenCalledWith({ page: 1, limit: 100 })
     })
 
     it('should handle negative page numbers gracefully', async () => {
@@ -381,8 +393,7 @@ describe('/api/users route', () => {
       }
 
       // Mock the getUsers function
-      const { getUsers } = await import('@/lib/neo4j')
-      ;(getUsers as any).mockResolvedValue(mockData)
+      mockGetUsers.mockResolvedValue(mockData)
 
       const request = new NextRequest('http://localhost:3000/api/users?page=-5&limit=20')
       const response = await GET(request)
@@ -390,7 +401,7 @@ describe('/api/users route', () => {
       expect(response.status).toBe(200)
       
       // Should use page 1 for negative values
-      expect(getUsers).toHaveBeenCalledWith({ page: 1, limit: 20 })
+      expect(mockGetUsers).toHaveBeenCalledWith({ page: 1, limit: 20 })
     })
   })
 })

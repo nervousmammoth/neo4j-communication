@@ -1,14 +1,16 @@
+name: neo4j-communication
+
 services:
   # ==============================================================================
   # Neo4j Database
   # ==============================================================================
   neo4j:
-    image: neo4j:5-community
+    image: neo4j:2025-community
     container_name: neo4j-communication-db
     restart: unless-stopped
     ports:
-      - "7474:7474"  # HTTP
-      - "7687:7687"  # Bolt
+      - "7476:7474"  # HTTP
+      - "7689:7687"  # Bolt
     environment:
       - NEO4J_AUTH=neo4j/OTJzELVAiGcsE915L7XQv41pkuOlGcI8
       - NEO4J_PLUGINS=["apoc"]

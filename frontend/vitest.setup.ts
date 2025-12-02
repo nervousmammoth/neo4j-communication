@@ -93,11 +93,11 @@ if (typeof window !== 'undefined') {
     Element.prototype.scrollIntoView = vi.fn()
   }
   
-  // Mock ResizeObserver for cmdk
-  global.ResizeObserver = vi.fn().mockImplementation(() => ({
-    observe: vi.fn(),
-    unobserve: vi.fn(),
-    disconnect: vi.fn(),
-  }))
+  // Mock ResizeObserver for cmdk - must be a proper class for Vitest 4.x
+  global.ResizeObserver = class MockResizeObserver {
+    observe = vi.fn()
+    unobserve = vi.fn()
+    disconnect = vi.fn()
+  }
 }
 

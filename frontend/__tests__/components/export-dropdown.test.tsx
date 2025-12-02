@@ -4,13 +4,14 @@ import userEvent from '@testing-library/user-event'
 import { ExportDropdown } from '@/components/export-dropdown'
 import * as exportUtils from '@/lib/export-utils'
 
-const ResizeObserver = vi.fn(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// Mock ResizeObserver as a proper class for Vitest 4.x compatibility
+class MockResizeObserver {
+  observe = vi.fn()
+  unobserve = vi.fn()
+  disconnect = vi.fn()
+}
 
-vi.stubGlobal('ResizeObserver', ResizeObserver);
+vi.stubGlobal('ResizeObserver', MockResizeObserver);
 
 vi.mock('@/lib/export-utils', async () => {
   const actual = await vi.importActual<typeof import('@/lib/export-utils')>('@/lib/export-utils');
