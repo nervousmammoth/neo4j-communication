@@ -240,3 +240,67 @@ export async function searchConversations({
     total
   };
 }
+
+/**
+ * Conversation detail type matching API client
+ */
+export interface ConversationDetailData {
+  conversationId: string;
+  title: string | null;
+  type: string;
+  priority: string;
+  createdAt: string;
+  tags: string[];
+  participants: {
+    userId: string;
+    name: string;
+    email: string;
+    avatarUrl: string | null;
+    status: string;
+  }[];
+}
+
+/**
+ * Get a single conversation by ID with full details including participants
+ * @param conversationId - The unique conversation identifier
+ * @returns The conversation detail or null if not found
+ */
+export async function getConversationById(
+  conversationId: string
+): Promise<ConversationDetailData | null> {
+  const query = `
+    MATCH (c:Conversation {conversationId: $conversationId})
+    OPTIONAL MATCH (u:User)-[:PARTICIPATES_IN]->(c)
+    WITH c, collect(DISTINCT u {
+      userId: u.userId,
+      name: u.name,
+      email: u.email,
+      avatarUrl: u.avatarUrl,
+      status: u.status
+    }) as participants
+    RETURN {
+      conversationId: c.conversationId,
+      title: c.title,
+      type: c.type,
+      priority: c.priority,
+      createdAt: c.createdAt,
+      tags: c.tags,
+      participants: participants
+    } as conversation
+  `;
+
+  const result = await executeReadQuery(query, { conversationId });
+
+  if (result.records.length === 0) {
+    return null;
+  }
+
+  const conversation = result.records[0].get('conversation') as ConversationDetailData;
+
+  // Convert Neo4j DateTime to ISO string if needed
+  if (neo4j.isDateTime(conversation.createdAt)) {
+    conversation.createdAt = conversation.createdAt.toString();
+  }
+
+  return conversation;
+}

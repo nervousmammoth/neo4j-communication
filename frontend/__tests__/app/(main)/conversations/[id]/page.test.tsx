@@ -34,15 +34,9 @@ vi.mock('next/link', () => ({
   )
 }))
 
-// Mock Neo4j and neo4j driver
-vi.mock('@/lib/neo4j', () => ({
-  executeReadQuery: vi.fn()
-}))
-
-vi.mock('neo4j-driver', () => ({
-  default: {
-    isDateTime: vi.fn()
-  }
+// Mock the API client
+vi.mock('@/lib/api-client', () => ({
+  getConversationDetail: vi.fn()
 }))
 
 // Mock the AppSidebar component
@@ -50,7 +44,7 @@ vi.mock('@/components/app-sidebar', () => ({
   AppSidebar: () => <div data-testid="app-sidebar">Mocked AppSidebar</div>
 }))
 
-// Mock the sidebar components  
+// Mock the sidebar components
 vi.mock('@/components/ui/sidebar', () => ({
   SidebarProvider: ({ children, ...props }: any) => (
     <div data-testid="sidebar-provider" {...props}>{children}</div>
@@ -61,8 +55,7 @@ vi.mock('@/components/ui/sidebar', () => ({
   ),
 }))
 
-import { executeReadQuery } from '@/lib/neo4j'
-import neo4j from 'neo4j-driver'
+import { getConversationDetail } from '@/lib/api-client'
 
 describe('ConversationDetailPage', () => {
   let consoleErrorSpy: any
@@ -102,13 +95,9 @@ describe('ConversationDetailPage', () => {
   }
 
   it('should render conversation details', async () => {
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => mockConversation
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(mockConversation)
 
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     const { container } = render(element)
 
@@ -123,13 +112,9 @@ describe('ConversationDetailPage', () => {
       ...mockConversation,
       title: null
     }
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => conversationWithoutTitle
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(conversationWithoutTitle)
 
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     render(element)
 
@@ -141,13 +126,9 @@ describe('ConversationDetailPage', () => {
       ...mockConversation,
       participants: []
     }
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => conversationWithoutParticipants
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(conversationWithoutParticipants)
 
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     render(element)
 
@@ -155,13 +136,9 @@ describe('ConversationDetailPage', () => {
   })
 
   it('should apply correct layout classes', async () => {
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => mockConversation
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(mockConversation)
 
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     const { container } = render(element)
 
@@ -170,13 +147,9 @@ describe('ConversationDetailPage', () => {
   })
 
   it('should render back navigation link', async () => {
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => mockConversation
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(mockConversation)
 
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     render(element)
 
@@ -186,14 +159,10 @@ describe('ConversationDetailPage', () => {
   })
 
   it('should preserve page number in back link when from parameter is provided', async () => {
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => mockConversation
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(mockConversation)
 
-    const params = { id: 'conv-001' }
-    const searchParams = { from: '5' }
+    const params = Promise.resolve({ id: 'conv-001' })
+    const searchParams = Promise.resolve({ from: '5' })
     const element = await ConversationDetailPage({ params, searchParams })
     render(element)
 
@@ -203,14 +172,10 @@ describe('ConversationDetailPage', () => {
   })
 
   it('should default to page 1 in back link when no from parameter', async () => {
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => mockConversation
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(mockConversation)
 
-    const params = { id: 'conv-001' }
-    const searchParams = {}
+    const params = Promise.resolve({ id: 'conv-001' })
+    const searchParams = Promise.resolve({})
     const element = await ConversationDetailPage({ params, searchParams })
     render(element)
 
@@ -220,97 +185,50 @@ describe('ConversationDetailPage', () => {
   })
 
   it('should pass conversation ID to message list', async () => {
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => mockConversation
-      }]
-    } as any)
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(mockConversation)
 
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     render(element)
 
-    expect(executeReadQuery).toHaveBeenCalledWith(
-      expect.stringContaining('MATCH (c:Conversation {conversationId: $conversationId})'),
-      { conversationId: 'conv-001' }
-    )
+    expect(getConversationDetail).toHaveBeenCalledWith('conv-001')
     expect(screen.getByTestId('message-list')).toHaveTextContent('Messages for conv-001')
   })
 
-  it('should throw error when conversation not found', async () => {
-    // Mock empty result set (lines 42-43)
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: []
-    } as any)
+  it('should throw error when API fails', async () => {
+    const testError = new Error('Failed to fetch conversation detail: 404 Not Found')
+    vi.mocked(getConversationDetail).mockRejectedValueOnce(testError)
 
-    const params = { id: 'non-existent-id' }
-    
+    const params = Promise.resolve({ id: 'non-existent-id' })
+
     await expect(async () => {
       await ConversationDetailPage({ params })
-    }).rejects.toThrow('Conversation not found')
-  })
+    }).rejects.toThrow('Failed to fetch conversation detail')
 
-  it('should handle Neo4j DateTime conversion', async () => {
-    // Mock conversation with Neo4j DateTime object (lines 55-57)
-    const conversationWithDateTime = {
-      ...mockConversation,
-      createdAt: {
-        year: 2024,
-        month: 1,
-        day: 15,
-        toString: () => '2024-01-15T10:00:00.000Z'
-      }
-    }
-
-    // Mock neo4j.isDateTime to return true for our DateTime object
-    vi.mocked(neo4j.isDateTime).mockReturnValue(true)
-
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => conversationWithDateTime
-      }]
-    } as any)
-
-    const params = { id: 'conv-001' }
-    const element = await ConversationDetailPage({ params })
-    render(element)
-
-    // Verify isDateTime was called (the specific object doesn't matter for coverage)
-    expect(neo4j.isDateTime).toHaveBeenCalled()
-    expect(screen.getByTestId('conversation-header')).toBeInTheDocument()
+    expect(consoleErrorSpy).toHaveBeenCalledWith('Page error:', testError)
   })
 
   it('should handle errors and log them', async () => {
-    // Mock executeReadQuery to throw an error (lines 72-74)
-    const testError = new Error('Database connection failed')
-    vi.mocked(executeReadQuery).mockRejectedValueOnce(testError)
+    const testError = new Error('Network error')
+    vi.mocked(getConversationDetail).mockRejectedValueOnce(testError)
 
-    const params = { id: 'conv-001' }
-    
+    const params = Promise.resolve({ id: 'conv-001' })
+
     await expect(async () => {
       await ConversationDetailPage({ params })
-    }).rejects.toThrow('Database connection failed')
+    }).rejects.toThrow('Network error')
 
     expect(consoleErrorSpy).toHaveBeenCalledWith('Page error:', testError)
   })
 
   it('should handle conversation with null createdAt', async () => {
-    // Test the DateTime conversion path when createdAt is null
     const conversationWithNullDate = {
       ...mockConversation,
-      createdAt: null
+      createdAt: null as any
     }
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(conversationWithNullDate)
 
-    // Mock neo4j.isDateTime to return false for null value
-    vi.mocked(neo4j.isDateTime).mockReturnValue(false)
-
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => conversationWithNullDate
-      }]
-    } as any)
-
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     render(element)
 
@@ -318,22 +236,13 @@ describe('ConversationDetailPage', () => {
   })
 
   it('should handle conversation with string createdAt', async () => {
-    // Test when createdAt is already a string (shouldn't convert)
     const conversationWithStringDate = {
       ...mockConversation,
       createdAt: '2024-01-15T10:00:00Z'
     }
+    vi.mocked(getConversationDetail).mockResolvedValueOnce(conversationWithStringDate)
 
-    // Mock neo4j.isDateTime to return false for string value
-    vi.mocked(neo4j.isDateTime).mockReturnValue(false)
-
-    vi.mocked(executeReadQuery).mockResolvedValueOnce({
-      records: [{
-        get: () => conversationWithStringDate
-      }]
-    } as any)
-
-    const params = { id: 'conv-001' }
+    const params = Promise.resolve({ id: 'conv-001' })
     const element = await ConversationDetailPage({ params })
     render(element)
 

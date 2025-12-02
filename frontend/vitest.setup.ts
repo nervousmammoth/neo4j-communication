@@ -30,6 +30,14 @@ vi.mock('@/lib/neo4j', async () => {
   }
 })
 
+// Mock next/font/local for layout.tsx font imports
+vi.mock('next/font/local', () => ({
+  default: (config: { variable?: string }) => ({
+    variable: config.variable || '--font-mock',
+    className: 'mock-font-class',
+  }),
+}))
+
 // Mock next/navigation
 vi.mock('next/navigation', () => ({
   useRouter: () => ({

@@ -26,7 +26,7 @@ vi.mock('neo4j-driver', () => ({
 }))
 
 // Import after mocking
-import { searchConversations } from '@/lib/neo4j/queries/conversations'
+import { searchConversations, getConversationById } from '@/lib/neo4j/queries/conversations'
 
 describe('searchConversations', () => {
   beforeEach(() => {
@@ -462,6 +462,232 @@ describe('searchConversations', () => {
       }
 
       expect(mockClose).toHaveBeenCalled()
+    })
+  })
+})
+
+describe('getConversationById', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockClose.mockResolvedValue(undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+  })
+
+  describe('Basic Functionality', () => {
+    it('should fetch a conversation by ID', async () => {
+      const mockConversation = {
+        conversationId: 'conv-123',
+        title: 'Team Meeting',
+        type: 'group',
+        priority: 'high',
+        createdAt: '2024-01-20T10:00:00Z',
+        tags: ['work', 'urgent'],
+        participants: [
+          {
+            userId: 'user-1',
+            name: 'John Doe',
+            email: 'john@example.com',
+            avatarUrl: 'https://example.com/avatar1.jpg',
+            status: 'online'
+          },
+          {
+            userId: 'user-2',
+            name: 'Jane Smith',
+            email: 'jane@example.com',
+            avatarUrl: 'https://example.com/avatar2.jpg',
+            status: 'offline'
+          }
+        ]
+      }
+
+      mockRun.mockResolvedValueOnce({
+        records: [{
+          get: (key: string) => key === 'conversation' ? mockConversation : undefined
+        }]
+      })
+
+      const result = await getConversationById('conv-123')
+
+      // Verify query structure
+      const query = mockRun.mock.calls[0][0]
+      expect(query).toContain('MATCH (c:Conversation {conversationId: $conversationId})')
+      expect(query).toContain('PARTICIPATES_IN')
+
+      // Verify parameter was passed
+      const params = mockRun.mock.calls[0][1]
+      expect(params.conversationId).toBe('conv-123')
+
+      // Verify result
+      expect(result).toEqual(mockConversation)
+    })
+
+    it('should return null when conversation is not found', async () => {
+      mockRun.mockResolvedValueOnce({
+        records: []
+      })
+
+      const result = await getConversationById('non-existent-id')
+
+      expect(result).toBeNull()
+    })
+  })
+
+  describe('DateTime Handling', () => {
+    it('should convert Neo4j DateTime to ISO string', async () => {
+      const mockDateTime = {
+        _isDateTime: true,
+        toString: () => '2024-01-20T10:00:00.000Z'
+      }
+
+      const mockConversation = {
+        conversationId: 'conv-123',
+        title: 'Test Conversation',
+        type: 'direct',
+        priority: 'normal',
+        createdAt: mockDateTime,
+        tags: [],
+        participants: []
+      }
+
+      mockRun.mockResolvedValueOnce({
+        records: [{
+          get: (key: string) => key === 'conversation' ? mockConversation : undefined
+        }]
+      })
+
+      const result = await getConversationById('conv-123')
+
+      expect(result?.createdAt).toBe('2024-01-20T10:00:00.000Z')
+    })
+
+    it('should handle non-DateTime createdAt values', async () => {
+      const mockConversation = {
+        conversationId: 'conv-123',
+        title: 'Test Conversation',
+        type: 'direct',
+        priority: 'normal',
+        createdAt: '2024-01-20T10:00:00Z', // Already a string
+        tags: [],
+        participants: []
+      }
+
+      mockRun.mockResolvedValueOnce({
+        records: [{
+          get: (key: string) => key === 'conversation' ? mockConversation : undefined
+        }]
+      })
+
+      const result = await getConversationById('conv-123')
+
+      expect(result?.createdAt).toBe('2024-01-20T10:00:00Z')
+    })
+  })
+
+  describe('Participant Data', () => {
+    it('should return conversation with all participant details', async () => {
+      const mockParticipants = [
+        {
+          userId: 'user-1',
+          name: 'Alice',
+          email: 'alice@example.com',
+          avatarUrl: 'https://example.com/alice.jpg',
+          status: 'online'
+        },
+        {
+          userId: 'user-2',
+          name: 'Bob',
+          email: 'bob@example.com',
+          avatarUrl: 'https://example.com/bob.jpg',
+          status: 'away'
+        },
+        {
+          userId: 'user-3',
+          name: 'Charlie',
+          email: 'charlie@example.com',
+          avatarUrl: null,
+          status: 'offline'
+        }
+      ]
+
+      const mockConversation = {
+        conversationId: 'conv-group',
+        title: 'Group Chat',
+        type: 'group',
+        priority: 'medium',
+        createdAt: '2024-01-15T08:00:00Z',
+        tags: ['team'],
+        participants: mockParticipants
+      }
+
+      mockRun.mockResolvedValueOnce({
+        records: [{
+          get: (key: string) => key === 'conversation' ? mockConversation : undefined
+        }]
+      })
+
+      const result = await getConversationById('conv-group')
+
+      expect(result?.participants).toHaveLength(3)
+      expect(result?.participants[0].userId).toBe('user-1')
+      expect(result?.participants[2].avatarUrl).toBeNull()
+    })
+
+    it('should handle conversation with no participants', async () => {
+      const mockConversation = {
+        conversationId: 'conv-empty',
+        title: 'Empty Chat',
+        type: 'group',
+        priority: 'low',
+        createdAt: '2024-01-10T12:00:00Z',
+        tags: [],
+        participants: []
+      }
+
+      mockRun.mockResolvedValueOnce({
+        records: [{
+          get: (key: string) => key === 'conversation' ? mockConversation : undefined
+        }]
+      })
+
+      const result = await getConversationById('conv-empty')
+
+      expect(result?.participants).toEqual([])
+    })
+  })
+
+  describe('Error Handling', () => {
+    it('should handle database errors gracefully', async () => {
+      mockRun.mockRejectedValueOnce(new Error('Database connection failed'))
+
+      await expect(getConversationById('conv-123'))
+        .rejects.toThrow('Database connection failed')
+    })
+
+    it('should close session even on error', async () => {
+      mockRun.mockRejectedValueOnce(new Error('Query failed'))
+
+      try {
+        await getConversationById('conv-123')
+      } catch {
+        // Expected error
+      }
+
+      expect(mockClose).toHaveBeenCalled()
+    })
+  })
+
+  describe('Input Validation', () => {
+    it('should handle empty string conversationId', async () => {
+      mockRun.mockResolvedValueOnce({
+        records: []
+      })
+
+      const result = await getConversationById('')
+
+      expect(result).toBeNull()
     })
   })
 })
