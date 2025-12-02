@@ -8,16 +8,26 @@ vi.mock('@/lib/neo4j', () => ({
   getConversations: vi.fn(),
 }))
 
-// Mock crypto module for ETag generation
+// Mock crypto module for ETag generation - use vi.hoisted for Vitest 4.x compatibility
+const { mockCreateHash } = vi.hoisted(() => ({
+  mockCreateHash: vi.fn(() => {
+    let dataContent = ''
+    return {
+      update: vi.fn((data: string) => {
+        dataContent += data
+        return { update: vi.fn().mockReturnThis(), digest: vi.fn(() => dataContent.length.toString().padStart(32, 'abcdef1234567890')) }
+      }),
+      digest: vi.fn(() => dataContent.length.toString().padStart(32, 'abcdef1234567890'))
+    }
+  }),
+}))
+
 vi.mock('crypto', async (importOriginal) => {
-  const actual = await importOriginal()
+  const actual = await importOriginal<typeof import('crypto')>()
   return {
     ...actual,
-    createHash: vi.fn(() => ({
-      update: vi.fn(() => ({
-        digest: vi.fn(() => 'mock-hash-12345')
-      }))
-    }))
+    default: { ...actual, createHash: mockCreateHash },
+    createHash: mockCreateHash,
   }
 })
 

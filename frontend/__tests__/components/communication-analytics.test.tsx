@@ -371,14 +371,15 @@ describe('CommunicationAnalytics', () => {
     const patternsTab = screen.getByRole('tab', { name: 'Patterns' })
     fireEvent.click(patternsTab)
 
-    // Wait for tab content to load
+    // Wait for tab content and data to load (wait for Loading: false)
     await waitFor(() => {
       expect(screen.getByText('Response Time Analysis')).toBeInTheDocument()
+      const responseTimeChart = screen.getByTestId('response-time-chart')
+      expect(responseTimeChart).toHaveTextContent('Loading: false')
     })
-    
+
     // Now check the chart contents
     const responseTimeChart = screen.getByTestId('response-time-chart')
-    expect(responseTimeChart).toHaveTextContent('Loading: false')
     expect(responseTimeChart).toHaveTextContent('Avg: 3600000')
 
     const activityHeatmap = screen.getByTestId('activity-heatmap')

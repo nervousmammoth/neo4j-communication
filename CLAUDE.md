@@ -60,16 +60,17 @@ Neo4j Communication Analytics Platform - A Next.js application for analyzing com
 ## Architecture
 
 ### Tech Stack
-- **Frontend**: Next.js 15.3.5 (App Router), React 19, TypeScript
-- **Database**: Neo4j 5 Community Edition (graph database)
+- **Runtime**: Node.js 24 LTS
+- **Frontend**: Next.js 16.0.6 (App Router), React 19.2, TypeScript
+- **Database**: Neo4j 2025 Community Edition (graph database)
 - **UI**: Tailwind CSS 4, Radix UI, Recharts
-- **Testing**: Vitest with 98% coverage thresholds
+- **Testing**: Vitest 4.x with 98% coverage thresholds
 - **Deployment**: Docker with GitHub Actions CI/CD
 
 ### Project Structure
 
-```
-/home/christoph/neo4j-communication/
+```text
+neo4j-communication/
 ├── frontend/                    # Next.js application
 │   ├── app/                    # Next.js App Router
 │   │   ├── (main)/            # Main layout group
@@ -337,7 +338,7 @@ const [userId1, userId2] = [userA, userB].sort()
 ## Common Issues & Solutions
 
 ### Neo4j Connection
-- Default creds in docker-compose.yml: `neo4j/OTJzELVAiGcsE915L7XQv41pkuOlGcI8`
+- Default creds in docker-compose.yml: `neo4j/<password>` (see docker-compose.yml)
 - Connection test: `curl http://localhost:3000/api/health`
 - Neo4j browser: http://localhost:7474
 

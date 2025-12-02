@@ -1,7 +1,7 @@
 # ==============================================================================
 # Stage 1: Dependencies
 # ==============================================================================
-FROM node:20-alpine AS deps
+FROM node:24-alpine AS deps
 
 # Install dependencies needed for node-gyp and native modules
 RUN apk add --no-cache libc6-compat
@@ -17,7 +17,7 @@ RUN npm ci --prefer-offline --no-audit
 # ==============================================================================
 # Stage 2: Builder
 # ==============================================================================
-FROM node:20-alpine AS builder
+FROM node:24-alpine AS builder
 
 WORKDIR /app
 
@@ -38,7 +38,7 @@ RUN npm run build
 # ==============================================================================
 # Stage 3: Runner (Production)
 # ==============================================================================
-FROM node:20-alpine AS runner
+FROM node:24-alpine AS runner
 
 WORKDIR /app
 
