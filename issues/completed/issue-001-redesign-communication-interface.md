@@ -365,7 +365,6 @@ Following TDD approach (write tests FIRST, then implement):
 ## Dependencies
 
 ### Required shadcn Components
-- ScrollArea (may need installation)
 - Avatar (existing, needs modification)
 - Badge (existing)
 - Card (existing)

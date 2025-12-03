@@ -1,0 +1,60 @@
+services:
+  neo4j:
+    image: neo4j:5-community
+    container_name: neo4j-communication-test-db
+    ports:
+      - "7476:7474"  # HTTP - unique port for neo4j-communication
+      - "7689:7687"  # Bolt - unique port for neo4j-communication
+    environment:
+      # Authentication
+      NEO4J_AUTH: neo4j/testpassword
+
+      # Plugins
+      NEO4J_PLUGINS: '["apoc"]'
+
+      # APOC Configuration
+      NEO4J_apoc_export_file_enabled: 'true'
+      NEO4J_apoc_import_file_enabled: 'true'
+      NEO4J_apoc_import_file_use__neo4j__config: 'true'
+
+      # Database Configuration
+      NEO4J_dbms_memory_pagecache_size: 512M
+      NEO4J_dbms_memory_heap_initial__size: 512M
+      NEO4J_dbms_memory_heap_max__size: 1G
+
+      # Security (relaxed for testing)
+      NEO4J_dbms_security_procedures_unrestricted: apoc.*
+      NEO4J_dbms_security_procedures_allowlist: apoc.*
+      NEO4J_dbms_security_auth__max__failed__attempts: 0
+      NEO4J_dbms_security_auth__lock__time: 0s
+
+    volumes:
+      - neo4j_communication_test_data:/data
+      - neo4j_communication_test_logs:/logs
+      - neo4j_communication_test_import:/var/lib/neo4j/import
+      - neo4j_communication_test_plugins:/plugins
+
+    networks:
+      - neo4j-communication-test
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  neo4j_communication_test_data:
+    name: neo4j_communication_test_data
+  neo4j_communication_test_logs:
+    name: neo4j_communication_test_logs
+  neo4j_communication_test_import:
+    name: neo4j_communication_test_import
+  neo4j_communication_test_plugins:
+    name: neo4j_communication_test_plugins
+
+networks:
+  neo4j-communication-test:
+    name: neo4j-communication-test
+    driver: bridge

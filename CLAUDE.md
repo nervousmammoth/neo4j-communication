@@ -20,7 +20,7 @@ Neo4j Communication Analytics Platform - A Next.js application for analyzing com
 5. **Follow TDD**: Write tests first, make them fail, then implement
 6. **Create pull request** when implementation is complete
 7. **Merge PR** after code review and all tests pass
-8. **Move specification** from `/issues/` to `/completed/` after successful merge
+8. **Move specification** from `/issues/` to `/issues/completed/` after successful merge
 
 #### Issue Specification Format
 - Issue files must be placed in `/issues/` directory
@@ -157,6 +157,12 @@ npm test
 
 # Run tests once
 npm run test:run
+
+# Run a single test file
+npm test -- __tests__/lib/api-client.test.ts
+
+# Run tests matching a pattern
+npm test -- -t "should fetch users"
 
 # Run with UI
 npm run test:ui
