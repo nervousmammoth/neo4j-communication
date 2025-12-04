@@ -18,6 +18,12 @@ While these are simple files, having tests ensures:
 - Changes to these files are caught by tests
 - Documentation of expected behavior
 
+## User Story
+
+**As a** developer maintaining code quality
+**I want** test coverage for all components and modules (including simple ones)
+**So that** changes are validated, behavior is documented, and the 100% coverage goal is achievable
+
 ## Affected Files
 
 ### Files Missing Tests

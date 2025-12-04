@@ -14,6 +14,12 @@ The `UserListErrorBoundary` component attempts to POST error reports to `/api/er
 
 **Expected behavior:** Error reports should be successfully submitted and logged for debugging purposes.
 
+## User Story
+
+**As a** developer/DevOps engineer
+**I want** a working `/api/errors` endpoint that receives and logs client-side error reports
+**So that** I can monitor and debug production issues effectively
+
 ## Affected Files
 
 - `frontend/components/error-boundaries/user-list-error-boundary.tsx` (lines 55-68) - calls the missing endpoint

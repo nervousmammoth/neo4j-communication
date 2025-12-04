@@ -15,6 +15,12 @@ The PostCSS configuration in `frontend/postcss.config.mjs` passes the Tailwind C
 Failed to load PostCSS config - Invalid PostCSS Plugin found at: plugins[0]
 ```
 
+## User Story
+
+**As a** developer
+**I want** a correctly configured PostCSS setup
+**So that** builds and tests run without errors and Tailwind CSS processes correctly
+
 ## Affected Files
 
 - `frontend/postcss.config.mjs`

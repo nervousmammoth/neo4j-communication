@@ -14,6 +14,12 @@ The `fetchAggregatedData()` function in `lib/api-client.ts` doesn't normalize us
 2. **Cache misses** - Related queries may not benefit from cached data
 3. **Inconsistent behavior** - Different functions handling the same data differently
 
+## User Story
+
+**As a** developer
+**I want** consistent user ID normalization across all API client functions
+**So that** caching works efficiently and duplicate API calls are prevented
+
 ## Affected Files
 
 - `frontend/lib/api-client.ts` (lines 761-781)

@@ -15,6 +15,12 @@ This dead code:
 - Increases maintenance burden
 - Bloats the codebase unnecessarily
 
+## User Story
+
+**As a** developer maintaining the codebase
+**I want** to remove unused functions and dead code
+**So that** the codebase is cleaner, easier to understand, and simpler to maintain
+
 ## Affected Files
 
 - `frontend/lib/api-client.ts` (lines 72-105)

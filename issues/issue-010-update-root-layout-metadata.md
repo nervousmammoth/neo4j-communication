@@ -23,6 +23,12 @@ This affects:
 - Search engine results
 - Social media sharing previews
 
+## User Story
+
+**As a** user discovering or sharing the application
+**I want** proper application metadata (title, description, Open Graph tags)
+**So that** the app has correct branding and appears properly in search results and social media shares
+
 ## Affected Files
 
 - `frontend/app/layout.tsx` (lines 55-57)

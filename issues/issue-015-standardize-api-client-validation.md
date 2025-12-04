@@ -20,6 +20,12 @@ This inconsistency makes:
 2. Error messages vary in helpfulness
 3. Code harder to maintain
 
+## User Story
+
+**As a** developer working with API responses
+**I want** consistent validation patterns across all API client functions
+**So that** debugging is easier, error messages are helpful, and the codebase is maintainable
+
 ## Affected Files
 
 - `frontend/lib/api-client.ts` (multiple functions)

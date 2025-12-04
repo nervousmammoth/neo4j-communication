@@ -16,6 +16,12 @@ it.skip('should close dropdown when clicking outside', async () => {
 
 Skipped tests indicate incomplete test coverage and can mask regressions if the underlying functionality breaks.
 
+## User Story
+
+**As a** developer maintaining the test suite
+**I want** all tests to be active and passing (or properly documented if untestable)
+**So that** test coverage is complete and regressions are caught automatically
+
 ## Affected Files
 
 - `frontend/__tests__/components/export-dropdown.test.tsx` (line 151)

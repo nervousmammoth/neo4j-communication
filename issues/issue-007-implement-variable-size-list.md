@@ -15,6 +15,12 @@ The message timeline component uses a fixed item height of 160px for virtual scr
 itemSize={160}
 ```
 
+## User Story
+
+**As a** user viewing message timelines
+**I want** to see the full content of all messages regardless of length
+**So that** I don't miss important information in longer messages
+
 ## Affected Files
 
 - `frontend/components/message-timeline.tsx` (lines 183-190)

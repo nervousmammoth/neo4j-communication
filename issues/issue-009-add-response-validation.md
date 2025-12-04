@@ -14,6 +14,12 @@ The `fetchAggregatedData()` function in `lib/api-client.ts` lacks response struc
 2. Harder to debug malformed responses
 3. No type safety at runtime
 
+## User Story
+
+**As a** developer
+**I want** comprehensive response validation in all API client functions
+**So that** I get descriptive error messages when API responses are malformed and runtime type safety is ensured
+
 ## Affected Files
 
 - `frontend/lib/api-client.ts` (lines 761-781)

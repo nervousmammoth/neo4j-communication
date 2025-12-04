@@ -14,6 +14,12 @@ Two API routes contain inline Cypher queries instead of using query functions fr
 2. Code less reusable
 3. Query logic scattered across the codebase
 
+## User Story
+
+**As a** developer maintaining the Neo4j integration
+**I want** all Cypher queries organized in reusable query functions
+**So that** queries are testable, maintainable, and follow consistent architectural patterns
+
 ## Affected Files
 
 ### Files with Inline Queries
